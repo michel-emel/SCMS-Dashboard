@@ -1035,6 +1035,8 @@ def update_alerts(province, district, sector):
 # 7. LANCER L'APPLICATION
 # ============================================================================
 
+server = app.server
+
 if __name__ == '__main__':
     print("\n" + "="*75)
     print("🚀 SCMS OVERVIEW DASHBOARD - DASHBOARD 1/12")
@@ -1052,3 +1054,5 @@ if __name__ == '__main__':
     print("="*75 + "\n")
     
     app.run(debug=True, host='127.0.0.1', port=8050)
+
+    
