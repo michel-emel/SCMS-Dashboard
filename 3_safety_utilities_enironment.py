@@ -1283,6 +1283,8 @@ def update_recommendations(province, district, sector):
 # 9. LANCER L'APPLICATION
 # ============================================================================
 
+server = app.server
+
 if __name__ == '__main__':
     print("\n" + "="*75)
     print("🚀 SCMS SAFETY, UTILITIES & ENVIRONMENT DASHBOARD - COMPLETE")
