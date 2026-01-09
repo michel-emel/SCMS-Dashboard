@@ -39,6 +39,23 @@ df['name_of_the_province'] = df['name_of_the_province'].fillna('Unknown')
 df['name_of_the_district'] = df['name_of_the_district'].fillna('Unknown')
 df['name_of_the_sector'] = df['name_of_the_sector'].fillna('Unknown')
 
+# Create location_type column
+kigali_codes = [110504, 110505, 120735, 130804, 130405, 121207, 110306, 121011, 130819, 110909]
+
+secondary_codes = [331232, 330802, 330713, 240605, 240504, 240202, 271011, 270202, 270517, 
+                   270613, 430207, 430706, 430518, 430801, 520312, 520403, 520801, 361510, 
+                   360614, 361306]
+
+def get_location_type(code):
+    if code in kigali_codes:
+        return 'Kigali City'
+    elif code in secondary_codes:
+        return 'Secondary Cities'
+    else:
+        return 'Rural Districts'
+
+df['location_type'] = df['school_code'].apply(get_location_type)
+
 df['latitude'] = pd.to_numeric(df['gps_latitude'], errors='coerce')
 df['longitude'] = pd.to_numeric(df['gps_longitude'], errors='coerce')
 
@@ -106,62 +123,132 @@ def calculate_kpis(data):
     
     return kpis
 
-def calculate_alerts(data):
-    """Calculer les alertes avec logique corrigée"""
-    if len(data) == 0:
-        return {'urgent': [], 'attention': [], 'good': 0}
+# def calculate_alerts(data):
+#     """Calculer les alertes avec logique corrigée"""
+#     if len(data) == 0:
+#         return {'urgent': [], 'attention': [], 'good': 0}
     
-    urgent_schools = set()
-    attention_schools = set()
+#     urgent_schools = set()
+#     attention_schools = set()
+#     urgent = []
+#     attention = []
+    
+#     for _, row in data.iterrows():
+#         issues = []
+#         if row['kpi_a1_student_classroom_ratio'] > 50:
+#             issues.append(f"S/C: {row['kpi_a1_student_classroom_ratio']:.1f}")
+#         if row['kpi_a2_student_teacher_ratio'] > 40:
+#             issues.append(f"S/T: {row['kpi_a2_student_teacher_ratio']:.1f}")
+#         if row['index_1_infrastructure_health_index'] < 0.5:
+#             issues.append(f"Infra: {row['index_1_infrastructure_health_index']:.2f}")
+        
+#         if issues:
+#             urgent.append({'school': row['school_name'], 'issues': issues})
+#             urgent_schools.add(row['school_name'])
+    
+#     for _, row in data.iterrows():
+#         if row['school_name'] in urgent_schools:
+#             continue
+        
+#         issues = []
+#         if 45 < row['kpi_a1_student_classroom_ratio'] <= 50:
+#             issues.append("High S/C")
+#         if 35 < row['kpi_a2_student_teacher_ratio'] <= 40:
+#             issues.append("High S/T")
+#         if 0.5 <= row['index_1_infrastructure_health_index'] < 0.7:
+#             issues.append("Medium Infra")
+#         if row['m5_delayed_maintenance'] == 1:
+#             issues.append("Delayed Maint.")
+#         if row['s2_immediate_safety_concerns'] == 1:
+#             issues.append("Safety")
+#         if row['kpi_c1_fence_availability'] == 0:
+#             issues.append("No Fence")
+        
+#         if issues:
+#             attention.append({'school': row['school_name'], 'issues': issues})
+#             attention_schools.add(row['school_name'])
+    
+#     good_count = len(data) - len(urgent_schools) - len(attention_schools)
+    
+#     return {
+#         'urgent': urgent[:5],
+#         'attention': attention[:5],
+#         'good': good_count
+#     }
+def calculate_alerts(data):
+    """Calculer alertes avec toutes écoles"""
+    if len(data) == 0:
+        return {'urgent': [], 'attention': [], 'good': []}
+    
     urgent = []
     attention = []
+    good = []
     
     for _, row in data.iterrows():
-        issues = []
-        if row['kpi_a1_student_classroom_ratio'] > 50:
-            issues.append(f"S/C: {row['kpi_a1_student_classroom_ratio']:.1f}")
-        if row['kpi_a2_student_teacher_ratio'] > 40:
-            issues.append(f"S/T: {row['kpi_a2_student_teacher_ratio']:.1f}")
-        if row['index_1_infrastructure_health_index'] < 0.5:
-            issues.append(f"Infra: {row['index_1_infrastructure_health_index']:.2f}")
+        # school_info = {
+        #     'School': row['school_name'],
+        #     'Province': row['name_of_the_province'],
+        #     'S/C': round(row['kpi_a1_student_classroom_ratio'], 1),
+        #     'S/T': round(row['kpi_a2_student_teacher_ratio'], 1),
+        #     'Infra': round(row['index_1_infrastructure_health_index'], 2)
+        # }
+        school_info = {
+        'School': row['school_name'],
+        'Location': row['location_type'],
+        'Province': row['name_of_the_province'],
+        'S/C': round(row['kpi_a1_student_classroom_ratio'], 1),
+        'S/T': round(row['kpi_a2_student_teacher_ratio'], 1),  # ← AJOUTER
+        'Infra': round(row['index_1_infrastructure_health_index'], 2)
+        }
         
-        if issues:
-            urgent.append({'school': row['school_name'], 'issues': issues})
-            urgent_schools.add(row['school_name'])
-    
-    for _, row in data.iterrows():
-        if row['school_name'] in urgent_schools:
-            continue
+        # URGENT
+        if (row['kpi_a1_student_classroom_ratio'] > 50 or 
+            row['kpi_a2_student_teacher_ratio'] > 40 or 
+            row['index_1_infrastructure_health_index'] < 0.5):
+            urgent.append(school_info)
         
-        issues = []
-        if 45 < row['kpi_a1_student_classroom_ratio'] <= 50:
-            issues.append("High S/C")
-        if 35 < row['kpi_a2_student_teacher_ratio'] <= 40:
-            issues.append("High S/T")
-        if 0.5 <= row['index_1_infrastructure_health_index'] < 0.7:
-            issues.append("Medium Infra")
-        if row['m5_delayed_maintenance'] == 1:
-            issues.append("Delayed Maint.")
-        if row['s2_immediate_safety_concerns'] == 1:
-            issues.append("Safety")
-        if row['kpi_c1_fence_availability'] == 0:
-            issues.append("No Fence")
+        # ATTENTION
+        elif (45 < row['kpi_a1_student_classroom_ratio'] <= 50 or
+              35 < row['kpi_a2_student_teacher_ratio'] <= 40 or
+              0.5 <= row['index_1_infrastructure_health_index'] < 0.7 or
+              row['m5_delayed_maintenance'] == 1 or
+              row['s2_immediate_safety_concerns'] == 1 or
+              row['kpi_c1_fence_availability'] == 0):
+            school_info['Issues'] = []
+            if 45 < row['kpi_a1_student_classroom_ratio'] <= 50:
+                school_info['Issues'].append('High S/C')
+            if 35 < row['kpi_a2_student_teacher_ratio'] <= 40:
+                school_info['Issues'].append('High S/T')
+            if 0.5 <= row['index_1_infrastructure_health_index'] < 0.7:
+                school_info['Issues'].append('Med Infra')
+            if row['m5_delayed_maintenance'] == 1:
+                school_info['Issues'].append('Delayed')
+            if row['s2_immediate_safety_concerns'] == 1:
+                school_info['Issues'].append('Safety')
+            if row['kpi_c1_fence_availability'] == 0:
+                school_info['Issues'].append('No Fence')
+            school_info['Issues'] = ', '.join(school_info['Issues'])
+            attention.append(school_info)
         
-        if issues:
-            attention.append({'school': row['school_name'], 'issues': issues})
-            attention_schools.add(row['school_name'])
+        # GOOD
+        else:
+            good_reasons = []
+            if row['kpi_a1_student_classroom_ratio'] <= 45:
+                good_reasons.append('S/C≤45')
+            if row['kpi_a2_student_teacher_ratio'] <= 35:
+                good_reasons.append('S/T≤35')
+            if row['index_1_infrastructure_health_index'] >= 0.7:
+                good_reasons.append('Infra≥0.7')
+            school_info['Why Good'] = ', '.join(good_reasons)
+            good.append(school_info)
     
-    good_count = len(data) - len(urgent_schools) - len(attention_schools)
-    
-    return {
-        'urgent': urgent[:5],
-        'attention': attention[:5],
-        'good': good_count
-    }
+    return {'urgent': urgent, 'attention': attention, 'good': good}
 
-def filter_data(province=None, district=None, sector=None):
-    """Filtrer les données"""
+def filter_data(location=None, province=None, district=None, sector=None):
     filtered = df.copy()
+    
+    if location and location != 'All Locations':
+        filtered = filtered[filtered['location_type'] == location]
     
     if province and province != 'All Provinces':
         filtered = filtered[filtered['name_of_the_province'] == province]
@@ -277,31 +364,44 @@ app.layout = dbc.Container([
     
     # FILTRES
     dbc.Row([
+
+        dbc.Col([
+        html.Label("🌍 Location Type", style={'fontWeight': 'bold', 'fontSize': '11px', 'marginBottom': '4px'}),
+        dcc.Dropdown(id='location-dropdown',
+                    options=[
+                        {'label': 'All Locations', 'value': 'All Locations'},
+                        {'label': 'Kigali City', 'value': 'Kigali City'},
+                        {'label': 'Secondary Cities', 'value': 'Secondary Cities'},
+                        {'label': 'Rural Districts', 'value': 'Rural Districts'}
+                    ],
+                    value='All Locations', clearable=False, style={'fontSize': '10px'})
+    ], width=2),
+
         dbc.Col([
             html.Label("📍 Province", style={'fontWeight': 'bold', 'fontSize': '11px', 'marginBottom': '4px'}),
             dcc.Dropdown(id='province-dropdown', 
                         options=[{'label': 'All Provinces', 'value': 'All Provinces'}] + 
                                 [{'label': p, 'value': p} for p in all_provinces],
                         value='All Provinces', clearable=False, style={'fontSize': '10px'})
-        ], width=3),
+        ], width=2),
         dbc.Col([
             html.Label("🏘️ District", style={'fontWeight': 'bold', 'fontSize': '11px', 'marginBottom': '4px'}),
             dcc.Dropdown(id='district-dropdown', 
                         options=[{'label': 'All Districts', 'value': 'All Districts'}],
                         value='All Districts', clearable=False, style={'fontSize': '10px'})
-        ], width=3),
+        ], width=2),
         dbc.Col([
             html.Label("🗺️ Sector", style={'fontWeight': 'bold', 'fontSize': '11px', 'marginBottom': '4px'}),
             dcc.Dropdown(id='sector-dropdown',
                         options=[{'label': 'All Sectors', 'value': 'All Sectors'}],
                         value='All Sectors', clearable=False, style={'fontSize': '10px'})
-        ], width=3),
+        ], width=2),
         dbc.Col([
             html.Label("📊 Current Selection", style={'fontWeight': 'bold', 'fontSize': '11px', 'marginBottom': '4px'}),
             html.Div(id='selection-display', 
                     style={'fontSize': '10px', 'padding': '5px', 'backgroundColor': '#e3f2fd', 
                            'borderRadius': '4px', 'textAlign': 'center', 'marginTop': '2px'})
-        ], width=3)
+        ], width=2)
     ], style={'marginBottom': '18px'}),
     
     html.Hr(style={'margin': '0 0 22px 0'}),
@@ -502,12 +602,14 @@ def update_selection_display(province, district, sector):
 
 @app.callback(
     Output('kpi-cards-row1', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_kpi_row1(province, district, sector):
+def update_kpi_row1(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -523,12 +625,14 @@ def update_kpi_row1(province, district, sector):
 
 @app.callback(
     Output('kpi-cards-row2', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_kpi_row2(province, district, sector):
+def update_kpi_row2(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -552,12 +656,14 @@ def update_kpi_row2(province, district, sector):
 
 @app.callback(
     Output('kpi-cards-row3', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_kpi_row3(province, district, sector):
+def update_kpi_row3(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -577,12 +683,14 @@ def update_kpi_row3(province, district, sector):
 
 @app.callback(
     Output('top-performers', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_top_performers(province, district, sector):
+def update_top_performers(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -605,12 +713,14 @@ def update_top_performers(province, district, sector):
 
 @app.callback(
     Output('bottom-performers', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_bottom_performers(province, district, sector):
+def update_bottom_performers(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -633,12 +743,14 @@ def update_bottom_performers(province, district, sector):
 
 @app.callback(
     Output('age-distribution', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_age_distribution(province, district, sector):
+def update_age_distribution(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -666,12 +778,14 @@ def update_age_distribution(province, district, sector):
 
 @app.callback(
     Output('age-table', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_age_table(province, district, sector):
+def update_age_table(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -707,12 +821,14 @@ def update_age_table(province, district, sector):
 
 @app.callback(
     Output('map-chart', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_map(province, district, sector):
+def update_map(location, province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -762,22 +878,39 @@ def update_map(province, district, sector):
 
 @app.callback(
     Output('pie-chart', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_pie_chart(province, district, sector):
+def update_pie_chart(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
     )
     
-    students_by_province = filtered_df.groupby('name_of_the_province')['number_of_students'].sum().reset_index()
+    # students_by_province = filtered_df.groupby('name_of_the_province')['number_of_students'].sum().reset_index()
+    
+    # fig = go.Figure(data=[go.Pie(
+    #     labels=students_by_province['name_of_the_province'],
+    #     values=students_by_province['number_of_students'],
+    #     hole=0.4,
+    #     textinfo='label+percent',
+    #     textposition='outside',
+    #     marker=dict(colors=px.colors.qualitative.Set2),
+    #     hovertemplate="<b>%{label}</b><br>Students: %{value:,}<br>%{percent}<extra></extra>"
+    # )])
+    
+    
+    # Group by location_type instead of province
+    students_by_loc = filtered_df.groupby('location_type')['number_of_students'].sum().reset_index()
+    students_by_loc = students_by_loc.sort_values('number_of_students', ascending=False)
     
     fig = go.Figure(data=[go.Pie(
-        labels=students_by_province['name_of_the_province'],
-        values=students_by_province['number_of_students'],
+        labels=students_by_loc['location_type'],
+        values=students_by_loc['number_of_students'],
         hole=0.4,
         textinfo='label+percent',
         textposition='outside',
@@ -790,12 +923,14 @@ def update_pie_chart(province, district, sector):
 
 @app.callback(
     Output('toilets-chart', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_toilets_chart(province, district, sector):
+def update_toilets_chart(location, province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -833,12 +968,14 @@ def update_toilets_chart(province, district, sector):
 
 @app.callback(
     Output('climate-chart', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_climate_chart(province, district, sector):
+def update_climate_chart(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -861,19 +998,26 @@ def update_climate_chart(province, district, sector):
 
 @app.callback(
     Output('heatmap-chart', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_heatmap(province, district, sector):
+def update_heatmap(location, province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
     )
     
-    group_col = 'name_of_the_sector' if (province != 'All Provinces' and district != 'All Districts') else ('name_of_the_district' if province != 'All Provinces' else 'name_of_the_province')
+    # Smart grouping: use location_type when All Locations, else drill down
+    if location == 'All Locations':
+        group_col = 'location_type'
+    else:
+        group_col = 'name_of_the_sector' if (province != 'All Provinces' and district != 'All Districts') else ('name_of_the_district' if province != 'All Provinces' else 'name_of_the_province')
     
+
     heatmap_data = filtered_df.groupby(group_col).agg({
         'kpi_a1_student_classroom_ratio': 'mean',
         'kpi_a2_student_teacher_ratio': 'mean',
@@ -905,12 +1049,14 @@ def update_heatmap(province, district, sector):
 
 @app.callback(
     Output('schools-bar', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_schools_bar(province, district, sector):
+def update_schools_bar(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -943,12 +1089,14 @@ def update_schools_bar(province, district, sector):
 
 @app.callback(
     Output('top10-bar', 'figure'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_top10_bar(province, district, sector):
+def update_top10_bar(location,province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -981,12 +1129,14 @@ def update_top10_bar(province, district, sector):
 
 @app.callback(
     Output('alerts-box', 'children'),
+    Input('location-dropdown', 'value'),
     Input('province-dropdown', 'value'),
     Input('district-dropdown', 'value'),
     Input('sector-dropdown', 'value')
 )
-def update_alerts(province, district, sector):
+def update_alerts(location, province, district, sector):
     filtered_df = filter_data(
+        location=location if location != 'All Locations' else None,
         province=province if province != 'All Provinces' else None,
         district=district if district != 'All Districts' else None,
         sector=sector if sector != 'All Sectors' else None
@@ -994,39 +1144,71 @@ def update_alerts(province, district, sector):
     
     alerts = calculate_alerts(filtered_df)
     
-    urgent_items = [
-        html.Li(f"{alert['school']}: {', '.join(alert['issues'])}", 
-               style={'fontSize': '10px', 'marginBottom': '3px', 'lineHeight': '1.4'})
-        for alert in alerts['urgent']
-    ] if alerts['urgent'] else [html.Li("No urgent issues ✅", style={'fontSize': '10px', 'color': '#28a745', 'fontStyle': 'italic'})]
+    # URGENT TABLE
+    urgent_table = dash_table.DataTable(
+        data=alerts['urgent'],
+        columns=[{'name': i, 'id': i} for i in ['School', 'Location', 'Province', 'S/C', 'S/T', 'Infra']],
+        style_cell={'textAlign': 'left', 'fontSize': '9px', 'padding': '4px'},
+        style_header={'backgroundColor': '#f8d7da', 'fontWeight': 'bold', 'fontSize': '10px'},
+        style_data_conditional=[
+            {'if': {'column_id': 'S/C', 'filter_query': '{S/C} > 50'}, 'backgroundColor': '#f8d7da', 'color': '#d62728', 'fontWeight': 'bold'},
+            {'if': {'column_id': 'S/T', 'filter_query': '{S/T} > 40'}, 'backgroundColor': '#f8d7da', 'color': '#d62728', 'fontWeight': 'bold'},
+            {'if': {'column_id': 'Infra', 'filter_query': '{Infra} < 0.5'}, 'backgroundColor': '#f8d7da', 'color': '#d62728', 'fontWeight': 'bold'}
+        ],
+        page_size=10,
+        sort_action='native',
+        filter_action='native'
+    ) if alerts['urgent'] else html.P("✅ No urgent issues", style={'fontSize': '10px', 'color': '#28a745', 'textAlign': 'center'})
     
-    attention_items = [
-        html.Li(f"{alert['school']}: {', '.join(alert['issues'])}", 
-               style={'fontSize': '10px', 'marginBottom': '3px', 'lineHeight': '1.4'})
-        for alert in alerts['attention']
-    ] if alerts['attention'] else [html.Li("No attention needed ✅", style={'fontSize': '10px', 'color': '#28a745', 'fontStyle': 'italic'})]
+    # ATTENTION TABLE
+    attention_table = dash_table.DataTable(
+        data=alerts['attention'],
+        columns=[{'name': i, 'id': i} for i in ['School', 'Location', 'Province', 'S/C', 'S/T', 'Infra', 'Issues']],
+        style_cell={'textAlign': 'left', 'fontSize': '9px', 'padding': '4px'},
+        style_header={'backgroundColor': '#fff3cd', 'fontWeight': 'bold', 'fontSize': '10px'},
+        page_size=10,
+        sort_action='native',
+        filter_action='native'
+    ) if alerts['attention'] else html.P("✅ No attention needed", style={'fontSize': '10px', 'color': '#28a745', 'textAlign': 'center'})
+    
+    # GOOD TABLE
+    good_table = dash_table.DataTable(
+        data=alerts['good'],
+        columns=[{'name': i, 'id': i} for i in ['School', 'Location', 'Province', 'S/C', 'S/T', 'Infra', 'Why Good']],
+        style_cell={'textAlign': 'left', 'fontSize': '9px', 'padding': '4px'},
+        style_header={'backgroundColor': '#d4edda', 'fontWeight': 'bold', 'fontSize': '10px'},
+        style_data_conditional=[
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}
+        ],
+        page_size=10,
+        sort_action='native',
+        filter_action='native'
+    ) if alerts['good'] else html.P("No good status schools", style={'fontSize': '10px', 'color': '#999', 'textAlign': 'center'})
     
     return dbc.Card([
-        dbc.CardHeader("⚠️ ALERTS & PRIORITIES", 
+        dbc.CardHeader("⚠️ ALERTS & PRIORITIES - ALL SCHOOLS", 
                       style={'fontWeight': 'bold', 'backgroundColor': '#fff3cd', 'fontSize': '13px', 'padding': '8px', 'textAlign': 'center'}),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col([
-                    html.H6(f"🔴 URGENT ({len(alerts['urgent'])})", 
+                    html.H6(f"🔴 URGENT ({len(alerts['urgent'])} schools)", 
                            style={'fontSize': '11px', 'color': '#d62728', 'fontWeight': 'bold', 'marginBottom': '8px'}),
-                    html.Ul(urgent_items, style={'paddingLeft': '18px', 'marginBottom': '0'})
-                ], width=4),
+                    urgent_table
+                ], width=12, style={'marginBottom': '15px'}),
+            ]),
+            dbc.Row([
                 dbc.Col([
-                    html.H6(f"🟡 ATTENTION ({len(alerts['attention'])})", 
+                    html.H6(f"🟡 ATTENTION ({len(alerts['attention'])} schools)", 
                            style={'fontSize': '11px', 'color': '#ffa500', 'fontWeight': 'bold', 'marginBottom': '8px'}),
-                    html.Ul(attention_items, style={'paddingLeft': '18px', 'marginBottom': '0'})
-                ], width=4),
+                    attention_table
+                ], width=12, style={'marginBottom': '15px'}),
+            ]),
+            dbc.Row([
                 dbc.Col([
-                    html.H6(f"✅ GOOD STATUS ({alerts['good']})", 
+                    html.H6(f"✅ GOOD STATUS ({len(alerts['good'])} schools)", 
                            style={'fontSize': '11px', 'color': '#2ca02c', 'fontWeight': 'bold', 'marginBottom': '8px'}),
-                    html.P(f"{alerts['good']} schools in good condition", 
-                          style={'fontSize': '10px', 'marginBottom': '0', 'color': '#28a745'})
-                ], width=4)
+                    good_table
+                ], width=12)
             ])
         ], style={'padding': '12px'})
     ], style={'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'borderRadius': '8px', 'border': '2px solid #ffc107'})
