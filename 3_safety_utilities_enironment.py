@@ -1381,6 +1381,8 @@ def update_recommendations(location, province, district, sector, schools):
 # 9. LANCER L'APPLICATION
 # ============================================================================
 
+server = app.server
+
 if __name__ == '__main__':
     print("\n" + "="*80)
     print("🚀 SCMS SAFETY, UTILITIES & ENVIRONMENT DASHBOARD - WITH FILTERS")

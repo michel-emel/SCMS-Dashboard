@@ -1199,6 +1199,8 @@ def update_alerts(location, province, district, sector, schools):
 # 7. LANCER L'APPLICATION
 # ============================================================================
 
+server = app.server
+
 if __name__ == '__main__':
     print("\n" + "="*80)
     print("🚀 SCMS OVERVIEW DASHBOARD - DASHBOARD 1/12 - WITH FILTERS")
